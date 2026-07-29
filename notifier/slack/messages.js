@@ -1,7 +1,8 @@
 // Slack メッセージフォーマット
 
 export function buildSlackMessage(apiData) {
-  const { immediate, digest } = apiData;
+  const immediate = apiData.immediate || [];
+  const digest = apiData.digest || [];
 
   const blocks = [];
 
@@ -25,8 +26,17 @@ export function buildSlackMessage(apiData) {
     ],
   });
 
+  // サマリー
+  blocks.push({
+    type: 'section',
+    text: {
+      type: 'mrkdwn',
+      text: `新着エントリ: *${apiData.summary?.totalNewEntries || 0}* 件`,
+    },
+  });
+
   // 即時通知セクション
-  if (immediate && immediate.length > 0) {
+  if (immediate.length > 0) {
     blocks.push({
       type: 'divider',
     });
@@ -40,11 +50,12 @@ export function buildSlackMessage(apiData) {
     });
 
     for (const alert of immediate.slice(0, 5)) {
+      const areas = alert.areas ? alert.areas.join(', ') : '全国';
       blocks.push({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `• *${alert.reportTitle}*\n  対象地域: ${alert.areas.join(', ')}`,
+          text: `• *${alert.reportTitle}*\n  地域: ${areas}`,
         },
       });
     }
@@ -63,7 +74,7 @@ export function buildSlackMessage(apiData) {
   }
 
   // 集約通知セクション
-  if (digest && digest.length > 0) {
+  if (digest.length > 0) {
     blocks.push({
       type: 'divider',
     });
@@ -99,7 +110,7 @@ export function buildSlackMessage(apiData) {
     }
   }
 
-  // フッター
+  // 通知なしの場合
   if (immediate.length === 0 && digest.length === 0) {
     blocks.push({
       type: 'section',
@@ -126,7 +137,7 @@ export function buildSlackMessage(apiData) {
 
   return {
     blocks,
-    text: `防災情報アラート: 即時${immediate?.length || 0}件、集約${digest?.length || 0}件`,
+    text: `防災情報アラート: 即時${immediate.length}件、集約${digest.length}件`,
   };
 }
 

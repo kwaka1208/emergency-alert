@@ -1,0 +1,39 @@
+name: Poll JMA Feed
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15分ごと実行
+  workflow_dispatch:         # 手動実行
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Poll JMA Feed and push to jma-alert-api
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JMA_ALERT_API_TOKEN: ${{ secrets.JMA_ALERT_API_TOKEN }}
+          JMA_ALERT_API_OWNER: ${{ secrets.JMA_ALERT_API_OWNER }}
+          JMA_ALERT_API_REPO: ${{ secrets.JMA_ALERT_API_REPO }}
+        run: node scripts/github-poll.js
+
+      - name: Commit changes to this repo
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update JMA alert data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          git push || true

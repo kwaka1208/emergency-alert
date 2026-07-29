@@ -147,6 +147,24 @@ Pub/Sub は at-least-once なので、processor は冪等でなければなら�
 
 Firestore と Pub/Sub は公式エミュレータを使う。
 
+## ローカル開発時の注意
+
+**git コンフリクト回避のため、以下に従う：**
+
+- `api/latest.json`と`api/archive/`はローカルでは追跡しない（`.git/info/exclude`で除外）
+- ローカルでポーリング実行（`node scripts/github-poll.js`）をしない
+  - 自動実行（GitHub Actions）のみでポーリングを実行
+- テスト目的での Slack 通知は`SLACK_NOTIFY_TEST=true`を使用
+- `api/latest.json`はリモートで REST API として公開され、`raw.githubusercontent.com`から取得可能
+
+## 実装済み機能
+
+- ✅ 深刻度による自動分類（immediate / digest / record）
+- ✅ 即時通知と重複排除（`api/sent-notifs.json`で管理）
+- ✅ JST タイムゾーン表示（Slack 通知）
+- ✅ テストモード（`SLACK_NOTIFY_TEST=true`で通知を送信）
+- ✅ 新体系フォーマットのみに統一（R06 以降、旧体系 H27 を除外）
+
 ## 未決事項（勝手に決めない）
 
 1. 通知先（Slack / LINE Messaging API / メール）と宛先。全国運用では専用チャンネル推奨

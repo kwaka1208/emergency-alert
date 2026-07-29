@@ -1,0 +1,14 @@
+{
+  "name": "jma-alert-core",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "気象庁防災情報XMLから防災情報APIを生成するシステム",
+  "scripts": {
+    "test": "node --test test/unit/**/*.test.js",
+    "phase0": "node scripts/phase0-analyze.js"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.3.2"
+  },
+  "devDependencies": {}
+}

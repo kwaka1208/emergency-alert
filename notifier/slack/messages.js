@@ -21,7 +21,7 @@ export function buildSlackMessage(apiData) {
     elements: [
       {
         type: 'mrkdwn',
-        text: `📅 ${new Date(apiData.timestamp).toLocaleString('ja-JP')}`,
+        text: `📅 ${new Date(apiData.timestamp).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`,
       },
     ],
   });
@@ -151,7 +151,7 @@ export function buildThreadMessage(alert) {
 • 情報種別: ${alert.infoType}
 • 対象地域: ${alert.areas.join(', ')}
 • 変更内容: 新規${alert.changes.added}件, 格上げ${alert.changes.upgraded}件, 格下げ${alert.changes.downgraded}件, 解除${alert.changes.removed}件
-• 発表時刻: ${new Date(alert.reportId).toLocaleString('ja-JP')}
+• 発表時刻: ${new Date(alert.reportId).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
   `.trim();
 
   return {

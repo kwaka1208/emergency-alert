@@ -1,0 +1,24 @@
+name: Slack Notification
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 30分ごと
+  workflow_dispatch:        # 手動実行
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Send Slack notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          API_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/api/latest.json
+        run: node notifier/slack/index.js

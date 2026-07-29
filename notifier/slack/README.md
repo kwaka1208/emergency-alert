@@ -33,7 +33,7 @@ SLACK_WEBHOOK_URL = https://hooks.slack.com/services/...
 
 リポジトリの **Actions** → **Poll JMA Feed & Notify** → 実行ログを確認
 
-デフォルトでは **15分ごと** にポーリングと Slack 通知が自動実行されます。
+デフォルトでは **5分ごと** にポーリングと Slack 通知が自動実行されます。
 
 ---
 
@@ -41,7 +41,7 @@ SLACK_WEBHOOK_URL = https://hooks.slack.com/services/...
 
 ### 実行間隔
 
-- **デフォルト**: ポーリングと同じ 15分ごと
+- **デフォルト**: ポーリングと同じ 5分ごと
 - **変更方法**: `.github/workflows/poll-jma.yml` の `cron` を編集
 
 ### 通知内容

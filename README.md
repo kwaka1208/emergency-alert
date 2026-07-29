@@ -17,7 +17,7 @@
 
 ```
 気象庁XML（毎分更新）
-    ↓ GitHub Actions（15分ごと）
+    ↓ GitHub Actions（5分ごと）
 [ポーラー] フィード取得・重複排除・JSON生成
     ↓
 api/latest.json（このリポジトリ内）
@@ -158,7 +158,7 @@ curl https://raw.githubusercontent.com/your-username/emergency-alert/main/api/la
 
 ### 自動スケジュール
 
-デフォルトでは **15分ごと** に自動実行されます。
+デフォルトでは **5分ごと** に自動実行されます。
 
 ### 手動実行
 

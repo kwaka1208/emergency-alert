@@ -73,14 +73,14 @@ curl https://raw.githubusercontent.com/your-username/emergency-alert/main/api/la
 
 ## スケジュール設定
 
-現在は **15分ごと** に実行されます。変更したい場合：
+現在は **5分ごと** に実行されます。変更したい場合：
 
 `.github/workflows/poll-jma.yml` の以下を修正：
 
 ```yaml
 on:
   schedule:
-    - cron: '*/15 * * * *'  # ← この部分
+    - cron: '*/5 * * * *'  # ← この部分
 ```
 
 ### よく使うスケジュール

@@ -2,7 +2,7 @@ name: Poll JMA Feed & Notify
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # 15分ごと
+    - cron: '*/5 * * * *'  # 5分ごと
   workflow_dispatch:        # 手動実行
 
 jobs:

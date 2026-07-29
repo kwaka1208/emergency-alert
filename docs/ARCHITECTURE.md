@@ -10,7 +10,7 @@
 │    https://www.data.jma.go.jp/developer/xml/feed/          │
 └────────────────────┬────────────────────────────────────────┘
                      │
-                     ▼ 15分ごと
+                     ▼ 5分ごと
 ┌─────────────────────────────────────────────────────────────┐
 │        GitHub Actions Workflow                              │
 │                                                              │
@@ -167,7 +167,7 @@ https://raw.githubusercontent.com/{owner}/emergency-alert/main/api/latest.json
 
 | 項目 | 値 | 理由 |
 |-----|-----|------|
-| ポーリング間隔 | 15分 | GitHub Actions の一般的な最小単位 |
+| ポーリング間隔 | 5分 | GitHub Actions の最小単位、気象庁規約内 |
 | ETag キャッシュ | HTTP ヘッダ | 不要な転送削減 |
 | フィード並列度 | 4並列 | 気象庁への負荷回避 |
 | ワークフロー timeout | 10分（デフォルト） | 十分な処理時間 |

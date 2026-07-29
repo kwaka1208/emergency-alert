@@ -140,20 +140,6 @@ for feed in data['feeds']:
 curl https://raw.githubusercontent.com/your-username/emergency-alert/main/api/latest.json | jq .
 ```
 
-## 設定
-
-### 環境変数
-
-| 変数 | 説明 | 既定値 |
-|-----|------|--------|
-| `GOOGLE_CLOUD_PROJECT` | Google Cloud プロジェクトID | 必須 |
-| `USER_AGENT` | フィード取得時の User-Agent | `jma-alert-bot/1.0 ...` |
-| `PUSH_TO_GITHUB` | GitHub への自動push | `true` |
-| `GITHUB_OWNER` | GitHub ユーザー/組織名 | 環境変数から取得 |
-| `GITHUB_REPO` | jma-alert-api リポジトリ | 環境変数から取得 |
-| `TITLE_ALLOW` | 対象情報名（カンマ区切り） | Phase 0実測のトップ8種 |
-
-
 ## GitHub Actions での実行
 
 ### 自動スケジュール

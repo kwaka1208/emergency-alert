@@ -18,16 +18,8 @@ async function main() {
 
     console.log('🚀 Fetching JMA alert data...');
 
-    // API から最新データを取得
-    const apiUrl = process.env.API_URL ||
-      'https://raw.githubusercontent.com/your-username/emergency-alert/main/api/latest.json';
-
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch API: ${response.status}`);
-    }
-
-    const apiData = await response.json();
+    // ローカルまたはリモートから API データを取得
+    const apiData = await loadApiData();
     console.log(`✅ Fetched data with ${apiData.summary.totalNewEntries} new entries`);
 
     const isTestMode = process.env.SLACK_NOTIFY_TEST === 'true';
@@ -91,6 +83,34 @@ async function main() {
     console.error('❌ Error:', err.message);
     process.exit(1);
   }
+}
+
+async function loadApiData() {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const localPath = path.join(currentDir, '../../api/latest.json');
+
+  // ローカルファイルを優先的に試す
+  try {
+    const content = await fs.readFile(localPath, 'utf-8');
+    console.log('📂 Loaded from local api/latest.json');
+    return JSON.parse(content);
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      throw err;
+    }
+  }
+
+  // ローカルがない場合、リモートから取得
+  const apiUrl = process.env.API_URL ||
+    'https://raw.githubusercontent.com/your-username/emergency-alert/main/api/latest.json';
+
+  console.log(`📡 Fetching from remote: ${apiUrl}`);
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch API: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 async function loadSentRecords() {

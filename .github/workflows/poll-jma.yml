@@ -29,7 +29,10 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add api/latest.json api/sent-notifs.json
+          git add api/latest.json
+          if [ -f api/sent-notifs.json ]; then
+            git add api/sent-notifs.json
+          fi
           git diff --quiet && git diff --staged --quiet || \
             git commit -m "chore: update JMA alert data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           git push || true

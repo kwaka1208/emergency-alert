@@ -6,6 +6,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { fetchFeed } from '../src/lib/feed.js';
 import { parseAtomFeed } from '../src/lib/atom.js';
 import { buildFeedJSON } from '../src/lib/json-builder.js';
+import { classifyBySeverity } from '../src/lib/severity-filter.js';
 import crypto from 'node:crypto';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@' });
@@ -42,6 +43,15 @@ async function main() {
       }
     }
 
+    // 全エントリを集約して分類
+    const allEntries = [];
+    for (const result of feedResults) {
+      if (result.entries) {
+        allEntries.push(...result.entries);
+      }
+    }
+    const classified = classifyBySeverity(allEntries);
+
     // 集計JSON を生成
     const batchJSON = {
       timestamp: new Date().toISOString(),
@@ -50,6 +60,9 @@ async function main() {
         totalFeeds: FEEDS.length,
         totalNewEntries: feedResults.reduce((sum, f) => sum + f.count, 0),
       },
+      immediate: classified.immediate,
+      digest: classified.digest,
+      record: classified.record,
     };
 
     // api/ フォルダに保存

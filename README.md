@@ -144,11 +144,18 @@ curl https://raw.githubusercontent.com/your-username/emergency-alert/main/api/la
 
 ### 自動スケジュール
 
-デフォルトでは **5分ごと** に自動実行されます。
+- **ポーリング**: 毎5分（0分, 5分, 10分...）
+- **Slack通知**: 毎5分（2分, 7分, 12分...）— ポーリングから2分後
 
 ### 手動実行
 
-リポジトリの **Actions** → **Poll JMA Feed & Notify** → **Run workflow**
+```
+ポーリング:
+  Actions → Poll JMA Feed → Run workflow
+
+Slack通知:
+  Actions → Notify to Slack → Run workflow
+```
 
 ### 実行ログ確認
 

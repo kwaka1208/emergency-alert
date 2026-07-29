@@ -17,13 +17,23 @@ git push -u origin main
 
 ### 2. ワークフローが有効になったか確認
 
-GitHub のリポジトリページで **Actions** タブを開き、`Poll JMA Feed & Notify` ワークフローが表示されていることを確認します。
+GitHub のリポジトリページで **Actions** タブを開き、以下のワークフローが表示されていることを確認します：
+- `Poll JMA Feed` — データポーリング用
+- `Notify to Slack` — Slack通知用
 
 ### 3. 手動で 1回実行してテスト
 
+**ステップ1: ポーリングを実行**
 ```
-Actions → Poll JMA Feed & Notify → Run workflow → Run workflow
+Actions → Poll JMA Feed → Run workflow → Run workflow
 ```
+
+**ステップ2: Slack通知を実行（オプション）**
+```
+Actions → Notify to Slack → Run workflow → Run workflow
+```
+
+実行完了後、`api/latest.json` が作成され、Slack に通知が送信されれば成功です。
 
 実行完了後、`api/latest.json` が作成されていれば成功です。
 
@@ -33,8 +43,9 @@ Actions → Poll JMA Feed & Notify → Run workflow → Run workflow
 
 ### ワークフローのログを確認
 
+**ポーリング:**
 ```
-Actions → Poll JMA Feed & Notify → 最新のワークフロー実行 → poll-and-notify
+Actions → Poll JMA Feed → 最新の実行 → poll
 ```
 
 成功時のログ：
@@ -46,6 +57,19 @@ Actions → Poll JMA Feed & Notify → 最新のワークフロー実行 → pol
    ✅ X new entries
 ✅ Saved to api/latest.json
 ✅ Poll completed successfully
+```
+
+**Slack通知:**
+```
+Actions → Notify to Slack → 最新の実行 → notify
+```
+
+成功時のログ：
+```
+🚀 Fetching JMA alert data...
+✅ Fetched data with X new entries
+📤 Sending to Slack...
+✅ Slack notification sent successfully
 ```
 
 ### API エンドポイントで JSON を取得
@@ -73,24 +97,39 @@ curl https://raw.githubusercontent.com/your-username/emergency-alert/main/api/la
 
 ## スケジュール設定
 
-現在は **5分ごと** に実行されます。変更したい場合：
+### 現在の設定
+
+- **Poll JMA Feed** (`.github/workflows/poll-jma.yml`): `*/5 * * * *` (0, 5, 10, 15分...)
+- **Notify to Slack** (`.github/workflows/notify-slack.yml`): 2分遅延 (2, 7, 12, 17分...)
+
+### ポーリング間隔を変更する場合
 
 `.github/workflows/poll-jma.yml` の以下を修正：
 
 ```yaml
 on:
   schedule:
-    - cron: '*/5 * * * *'  # ← この部分
+    - cron: '*/5 * * * *'  # ← この部分を変更
 ```
 
-### よく使うスケジュール
+### Slack通知の遅延を変更する場合
 
-| 間隔 | cron 式 |
-|-----|--------|
-| 5分ごと | `*/5 * * * *` |
-| 15分ごと | `*/15 * * * *` |
-| 30分ごと | `*/30 * * * *` |
-| 1時間ごと | `0 * * * *` |
+`.github/workflows/notify-slack.yml` の cron を修正。ポーリングから **N分遅延**させる場合：
+
+```yaml
+on:
+  schedule:
+    # ポーリングが */5 で実行される場合、通知は N, N+5, N+10, ... で実行
+    - cron: 'N,N+5,N+10,N+15,N+20,N+25,N+30,N+35,N+40,N+45,N+50,N+55 * * * *'
+```
+
+### 例
+
+| ポーリング | 遅延 | 通知のcron |
+|-------|------|---------|
+| `*/5` | 2分 | `2,7,12,17,22,27,32,37,42,47,52,57 * * * *` |
+| `*/5` | 1分 | `1,6,11,16,21,26,31,36,41,46,51,56 * * * *` |
+| `*/10` | 3分 | `3,13,23,33,43,53 * * * *` |
 
 ---
 

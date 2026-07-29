@@ -1,0 +1,30 @@
+name: Notify to Slack
+
+on:
+  schedule:
+    # ポーリングが */5 (0, 5, 10, 15...) で実行されるため
+    # 通知は 2分遅延させて (2, 7, 12, 17...) で実行
+    # これにより自動的にポーリング後に通知が実行される
+    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
+  workflow_dispatch:  # 手動実行
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Notify to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          API_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/api/latest.json
+        run: node notifier/slack/index.js || true

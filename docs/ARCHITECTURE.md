@@ -10,20 +10,20 @@
 │    https://www.data.jma.go.jp/developer/xml/feed/          │
 └────────────────────┬────────────────────────────────────────┘
                      │
-                     ▼ 5分ごと
-┌─────────────────────────────────────────────────────────────┐
-│        GitHub Actions Workflow                              │
-│                                                              │
-│  ┌──────────────────┐      ┌──────────────────┐            │
-│  │ ポーラー処理      │──▶   │ Slack通知        │            │
-│  │                  │      │                  │            │
-│  │ フィード取得     │      │ 新着アラートを   │            │
-│  │ 重複排除         │      │ Slack に通知     │            │
-│  │ JSON生成         │      │                  │            │
-│  └──────────────────┘      └──────────────────┘            │
-│         │                                                   │
-│         ▼ git push                                          │
-└─────────────────────────────────────────────────────────────┘
+        ┌────────────┴──────────────┐
+        ▼ 5分ごと（0,5,10...分）   ▼ 5分ごと（2,7,12...分）
+┌──────────────────────┐  ┌──────────────────────┐
+│ Poll JMA Feed        │  │ Notify to Slack      │
+│                      │  │                      │
+│ ポーラー処理         │  │ Slack通知処理        │
+│ • フィード取得       │  │ • JSON取得           │
+│ • 重複排除           │  │ • Slack webhook      │
+│ • JSON生成           │  │                      │
+│ • git push           │  │（ポーリング後2分）   │
+└──────────────────────┘  └──────────────────────┘
+        │
+        ▼ commit
+api/latest.json に保存
                      │
                      ▼ commit
 ┌─────────────────────────────────────────────────────────────┐
@@ -115,10 +115,30 @@ https://raw.githubusercontent.com/{owner}/emergency-alert/main/api/latest.json
 
 ## データフロー
 
-### 15分ごとの処理フロー
+### 5分ごとの処理（スケジュール実行）
 
 ```
-1. GitHub Actions Workflow トリガー（schedule: 15分ごと）
+時刻     Poll JMA Feed          Notify to Slack
+────────────────────────────────────────────────
+0分      ├─ ポーリング         
+         ├─ JSON 生成
+         └─ git push
+2分                             ├─ API 取得
+                                ├─ Slack 投稿
+                                └─ 完了
+────────────────────────────────────────────────
+5分      ├─ ポーリング
+         ├─ JSON 生成
+         └─ git push
+7分                             ├─ API 取得
+                                ├─ Slack 投稿
+                                └─ 完了
+```
+
+### ポーリング処理（Poll JMA Feed）
+
+```
+1. GitHub Actions Workflow トリガー（schedule: */5 * * * *）
    ↓
 2. scripts/github-poll.js 実行
    ├ 4フィード並列ポーリング
@@ -131,12 +151,22 @@ https://raw.githubusercontent.com/{owner}/emergency-alert/main/api/latest.json
    ├ api/latest.json を add
    ├ コミット
    └ GitHub に push
+```
+
+### 通知処理（Notify to Slack）
+
+```
+1. GitHub Actions Workflow トリガー（schedule: 2分遅延）
    ↓
-4. notifier/slack/index.js 実行（if: always()）
+2. notifier/slack/index.js 実行
    ├ API_URL から JSON 取得
    ├ Slack メッセージ構築
-   ├ Slack Webhook 投稿
-   └ エラーは || true でスキップ
+   └ Slack Webhook 投稿
+   
+3. エラー時
+   ├ Secret 設定がない → 警告のみ
+   ├ Webhook URL 無効 → エラーログ出力
+   └ Slack API エラー → リトライなし（次回実行で再試行）
 ```
 
 ## ライブラリと技術スタック

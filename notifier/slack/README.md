@@ -31,18 +31,24 @@ SLACK_WEBHOOK_URL = https://hooks.slack.com/services/...
 
 ### ステップ4: ワークフローの自動実行を確認
 
-リポジトリの **Actions** → **Poll JMA Feed & Notify** → 実行ログを確認
+リポジトリの **Actions** → **Notify to Slack** → 実行ログを確認
 
-デフォルトでは **5分ごと** にポーリングと Slack 通知が自動実行されます。
+デフォルトでは **5分ごと**、ポーリングから**2分後**に自動実行されます：
+- ポーリング: 0分, 5分, 10分, 15分...
+- 通知: 2分, 7分, 12分, 17分...
 
 ---
 
 ## 動作仕様
 
-### 実行間隔
+### 実行スケジュール
 
-- **デフォルト**: ポーリングと同じ 5分ごと
-- **変更方法**: `.github/workflows/poll-jma.yml` の `cron` を編集
+- **Poll JMA Feed**: 毎5分（ポーリング実行）
+- **Notify to Slack**: 毎5分、2分遅延（ポーリング後に通知送信）
+
+### 実行間隔を変更する場合
+
+`.github/workflows/notify-slack.yml` の `cron` を編集（[docs/GITHUB_ACTIONS_SETUP.md](../../docs/GITHUB_ACTIONS_SETUP.md#スケジュール設定) 参照）
 
 ### 通知内容
 
@@ -75,16 +81,16 @@ SLACK_WEBHOOK_URL = https://hooks.slack.com/services/...
 ### 手動実行
 
 ```
-Actions → Poll JMA Feed & Notify → Run workflow → Run workflow
+Actions → Notify to Slack → Run workflow → Run workflow
 ```
 
 ### 自動実行確認
 
 ```
-Actions → Poll JMA Feed & Notify → 最新の実行 → poll-and-notify
+Actions → Notify to Slack → 最新の実行 → notify
 ```
 
-「Notify to Slack」ステップのログを確認して、通知が送信されたか確認できます。
+ログを確認して、通知が送信されたか確認できます。
 
 ---
 
@@ -109,10 +115,10 @@ Actions → Poll JMA Feed & Notify → 最新の実行 → poll-and-notify
 ワークフローのログを確認：
 
 ```
-Actions → Poll JMA Feed & Notify → 最新の実行 → poll-and-notify
+Actions → Notify to Slack → 最新の実行 → notify
 ```
 
-「Notify to Slack」ステップのエラーメッセージから原因を特定できます。
+エラーメッセージから原因を特定できます。
 
 通常、SLACK_WEBHOOK_URL が設定されていない場合は警告として表示されますが、ワークフロー全体は失敗しません。
 
@@ -131,18 +137,9 @@ Actions → Poll JMA Feed & Notify → 最新の実行 → poll-and-notify
 
 ### 実行間隔を変更
 
-`.github/workflows/poll-jma.yml` の `cron` を編集：
+[docs/GITHUB_ACTIONS_SETUP.md](../../docs/GITHUB_ACTIONS_SETUP.md#スケジュール設定) を参照
 
-```yaml
-schedule:
-  - cron: '*/15 * * * *'  # 15分ごと
-  # または
-  - cron: '0 * * * *'    # 1時間ごと
-  # または
-  - cron: '0 9,12,15,18,21 * * *'  # 特定の時間のみ
-```
-
-ポーリングと Slack 通知は常に一緒に実行されます。
+**ポーリングと通知は独立して実行**されるため、それぞれのスケジュールを調整できます。
 
 ### メッセージをカスタマイズ
 

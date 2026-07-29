@@ -1,4 +1,4 @@
-name: Poll JMA Feed & Notify
+name: Poll JMA Feed
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:        # 手動実行
 
 jobs:
-  poll-and-notify:
+  poll:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,13 +24,6 @@ jobs:
 
       - name: Poll JMA Feed
         run: node scripts/github-poll.js
-
-      - name: Notify to Slack
-        if: always()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          API_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/api/latest.json
-        run: node notifier/slack/index.js || true
 
       - name: Commit and push
         run: |

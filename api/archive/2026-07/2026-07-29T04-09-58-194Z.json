@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-07-29T04:17:16.829Z",
+  "timestamp": "2026-07-29T04:09:58.182Z",
   "feeds": [
     {
       "feed": "extra",
-      "timestamp": "2026-07-29T04:17:16.737Z",
+      "timestamp": "2026-07-29T04:09:56.976Z",
       "count": 619,
       "entries": [
         {
@@ -8677,9 +8677,37 @@
     },
     {
       "feed": "eqvol",
-      "timestamp": "2026-07-29T04:17:16.757Z",
-      "count": 88,
+      "timestamp": "2026-07-29T04:09:56.994Z",
+      "count": 87,
       "entries": [
+        {
+          "id": "https://www.data.jma.go.jp/developer/xml/data/20260728175806_0_VXSE53_010000.xml",
+          "title": "震源・震度に関する情報",
+          "updated": "2026-07-28T17:58:06Z",
+          "link": {
+            "@type": "application/xml",
+            "@href": "https://www.data.jma.go.jp/developer/xml/data/20260728175806_0_VXSE53_010000.xml"
+          },
+          "summary": "",
+          "content": {
+            "#text": "【震源・震度情報】２９日０２時５４分ころ、地震がありました。",
+            "@type": "text"
+          }
+        },
+        {
+          "id": "https://www.data.jma.go.jp/developer/xml/data/20260728181106_0_VXSE53_270000.xml",
+          "title": "震源・震度に関する情報",
+          "updated": "2026-07-28T18:11:06Z",
+          "link": {
+            "@type": "application/xml",
+            "@href": "https://www.data.jma.go.jp/developer/xml/data/20260728181106_0_VXSE53_270000.xml"
+          },
+          "summary": "",
+          "content": {
+            "#text": "【震源・震度情報】２９日０３時０８分ころ、地震がありました。",
+            "@type": "text"
+          }
+        },
         {
           "id": "https://www.data.jma.go.jp/developer/xml/data/20260728183052_0_VXSE53_270000.xml",
           "title": "震源・震度に関する情報",
@@ -9869,55 +9897,13 @@
             "#text": "【震源・震度情報】２９日１２時５２分ころ、地震がありました。",
             "@type": "text"
           }
-        },
-        {
-          "id": "https://www.data.jma.go.jp/developer/xml/data/20260729040845_0_VXSE53_270000.xml",
-          "title": "震源・震度に関する情報",
-          "updated": "2026-07-29T04:08:44Z",
-          "link": {
-            "@type": "application/xml",
-            "@href": "https://www.data.jma.go.jp/developer/xml/data/20260729040845_0_VXSE53_270000.xml"
-          },
-          "summary": "",
-          "content": {
-            "#text": "【震源・震度情報】２９日１３時０６分ころ、地震がありました。",
-            "@type": "text"
-          }
-        },
-        {
-          "id": "https://www.data.jma.go.jp/developer/xml/data/20260729041119_0_VXSE53_270000.xml",
-          "title": "震源・震度に関する情報",
-          "updated": "2026-07-29T04:11:19Z",
-          "link": {
-            "@type": "application/xml",
-            "@href": "https://www.data.jma.go.jp/developer/xml/data/20260729041119_0_VXSE53_270000.xml"
-          },
-          "summary": "",
-          "content": {
-            "#text": "【震源・震度情報】２９日１３時０９分ころ、地震がありました。",
-            "@type": "text"
-          }
-        },
-        {
-          "id": "https://www.data.jma.go.jp/developer/xml/data/20260729041544_0_VXSE53_270000.xml",
-          "title": "震源・震度に関する情報",
-          "updated": "2026-07-29T04:15:44Z",
-          "link": {
-            "@type": "application/xml",
-            "@href": "https://www.data.jma.go.jp/developer/xml/data/20260729041544_0_VXSE53_270000.xml"
-          },
-          "summary": "",
-          "content": {
-            "#text": "【震源・震度情報】２９日１３時１３分ころ、地震がありました。",
-            "@type": "text"
-          }
         }
       ],
       "metadata": {}
     },
     {
       "feed": "other",
-      "timestamp": "2026-07-29T04:17:16.772Z",
+      "timestamp": "2026-07-29T04:09:57.360Z",
       "count": 31,
       "entries": [
         {
@@ -10359,9 +10345,23 @@
     },
     {
       "feed": "regular",
-      "timestamp": "2026-07-29T04:17:16.828Z",
+      "timestamp": "2026-07-29T04:09:58.182Z",
       "count": 788,
       "entries": [
+        {
+          "id": "https://www.data.jma.go.jp/developer/xml/data/20260728181058_0_VPWS50_010000.xml",
+          "title": "気象警報・注意報（Ｒ０６）（集約通報）",
+          "updated": "2026-07-28T18:10:54Z",
+          "link": {
+            "@type": "application/xml",
+            "@href": "https://www.data.jma.go.jp/developer/xml/data/20260728181058_0_VPWS50_010000.xml"
+          },
+          "summary": "",
+          "content": {
+            "#text": "【警戒・注意事項集約定時通報】",
+            "@type": "text"
+          }
+        },
         {
           "id": "https://www.data.jma.go.jp/developer/xml/data/20260728182054_0_VPWS50_010000.xml",
           "title": "気象警報・注意報（Ｒ０６）（集約通報）",
@@ -21379,20 +21379,6 @@
             "#text": "【警戒・注意事項集約定時通報】",
             "@type": "text"
           }
-        },
-        {
-          "id": "https://www.data.jma.go.jp/developer/xml/data/20260729041101_0_VPWS50_010000.xml",
-          "title": "気象警報・注意報（Ｒ０６）（集約通報）",
-          "updated": "2026-07-29T04:10:59Z",
-          "link": {
-            "@type": "application/xml",
-            "@href": "https://www.data.jma.go.jp/developer/xml/data/20260729041101_0_VPWS50_010000.xml"
-          },
-          "summary": "",
-          "content": {
-            "#text": "【警戒・注意事項集約定時通報】",
-            "@type": "text"
-          }
         }
       ],
       "metadata": {}
@@ -21400,6 +21386,6 @@
   ],
   "summary": {
     "totalFeeds": 4,
-    "totalNewEntries": 1526
+    "totalNewEntries": 1525
   }
 }

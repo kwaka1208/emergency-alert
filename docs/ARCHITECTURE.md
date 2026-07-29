@@ -1,6 +1,6 @@
 # システムアーキテクチャ
 
-気象庁防災情報APIシステムの全体構成です。
+気象庁防災情報 REST API システムの全体構成です。
 
 ## 全体図
 
@@ -10,32 +10,28 @@
 │    https://www.data.jma.go.jp/developer/xml/feed/          │
 └────────────────────┬────────────────────────────────────────┘
                      │
-                     ▼
+                     ▼ 15分ごと
 ┌─────────────────────────────────────────────────────────────┐
-│        JMA Alert Core System (emergency-alert)              │
-│                  Google Cloud                                │
+│        GitHub Actions Workflow                              │
 │                                                              │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │   Poller     │    │  Processor   │    │  API Builder │  │
-│  │              │    │              │    │              │  │
-│  │ フィード取得  │──▶│ 電文パース    │──▶│ JSON生成     │  │
-│  │ 重複排除     │    │ 状態差分判定  │    │ 深刻度分類   │  │
-│  └──────────────┘    └──────────────┘    └──────────────┘  │
-│         │                    │                    │         │
-│         └────────────────────┴────────────────────┘         │
-│                              │                              │
-│                     Firestore（状態管理）                    │
-│                              │                              │
-│                     Cloud Logging（ログ）                    │
-└────────────────────┬────────────────────────────────────────┘
+│  ┌──────────────────┐      ┌──────────────────┐            │
+│  │ ポーラー処理      │──▶   │ Slack通知        │            │
+│  │                  │      │                  │            │
+│  │ フィード取得     │      │ 新着アラートを   │            │
+│  │ 重複排除         │      │ Slack に通知     │            │
+│  │ JSON生成         │      │                  │            │
+│  └──────────────────┘      └──────────────────┘            │
+│         │                                                   │
+│         ▼ git push                                          │
+└─────────────────────────────────────────────────────────────┘
                      │
-                     ▼
+                     ▼ commit
 ┌─────────────────────────────────────────────────────────────┐
-│        jma-alert-api (GitHub Repository)                    │
+│        GitHub Repository (emergency-alert)                  │
 │                                                              │
-│  latest.json              ◀─ Cloud Functions pushes         │
-│  archive/{YYYY-MM}/       ◀─ every minute                   │
-│    {timestamp}.json                                          │
+│  api/latest.json              # 最新データ                  │
+│  api/archive/{YYYY-MM}/       # 過去データ                  │
+│    {timestamp}.json                                         │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼ REST API
@@ -45,207 +41,199 @@
    ┌─────────────┐          ┌──────────────────┐
    │  Slack Bot  │          │ Other Systems    │
    │             │          │                  │
-   │ 通知実装例   │          │ Line, Mail, etc. │
+   │  実装例      │          │ Line, Mail, etc. │
    └─────────────┘          └──────────────────┘
 ```
 
 ## コンポーネント
 
-### 1. Poller（src/poller/index.js）
+### 1. ポーラー（scripts/github-poll.js）
 
-**役割:** 気象庁のフィードから新着エントリを検出
+**役割:** 気象庁のフィードから新着エントリを検出し JSON を生成
 
 **処理:**
+- 複数フィードの並列ポーリング
+  - `extra.xml` - 気象警報・注意報
+  - `eqvol.xml` - 地震・津波・火山
+  - `other.xml` - 台風など
+  - `regular.xml` - 定時情報
 - 条件付きGET（ETag / If-Modified-Since）
-- Atom フィードのパース
+- Atom フィードのパース（fast-xml-parser）
 - エントリの重複排除（SHA-1 hash）
-- 新着のみを抽出
 
-**出力:** JSON形式の新着エントリリスト
-
-**制約:**
-- 電文本体を取得しない（poller は軽量に）
-- フィードのみ取得
-- 同時接続を制限
-
-### 2. Processor（src/processor/index.js）
-
-**役割:** 電文XMLから変化を検知
-
-**処理:**
-- 電文本体取得
-- XML パース
-- 府県予報区ごとの警報・注意報状態を管理
-- 前回状態との差分判定
-- 古い電文による状態巻き戻し防止（ReportDateTime比較）
-
-**出力:** 変化があったもののみ
-
-### 3. API Builder（src/lib/api-builder.js）
-
-**役割:** 最終的なAPI形式でJSON生成
-
-**処理:**
-- EventID による続報束ね
-- 深刻度分類（immediate / digest / record）
-- メタデータ集約
-
-**出力:** REST API用JSON
+**出力:** JSON形式の新着エントリ
 
 ```json
 {
   "timestamp": "2026-07-29T10:00:00Z",
-  "immediate": [ ... ],     // 津波、特別警報など
-  "digest": [ ... ],        // 警報クラス（集約）
-  "record": [ ... ],        // 注意報、予報（記録）
-  "summary": { ... }
+  "feeds": [
+    {
+      "feed": "extra",
+      "count": 5,
+      "entries": [ ... ]
+    }
+  ],
+  "summary": {
+    "totalFeeds": 4,
+    "totalNewEntries": 12
+  }
 }
 ```
 
-### 4. GitHub API（src/lib/github.js）
+### 2. JSON ストレージ（api/latest.json と api/archive/）
 
-**役割:** JSONをGitHubリポジトリに公開
+**役割:** REST API エンドポイントとしての機能
 
 **ファイル配置:**
 ```
-jma-alert-api/
-├── latest.json              # 最新（毎分更新）
+api/
+├── latest.json              # 最新（毎回更新）
 └── archive/
     ├── 2026-07/
-    │   └── 2026-07-29T10-00-00Z.json
+    │   ├── 2026-07-29T10-00-00Z.json
+    │   └── 2026-07-29T10-15-00Z.json
     └── 2026-08/
 ```
 
 **REST API:**
 ```
-https://raw.githubusercontent.com/{owner}/jma-alert-api/main/latest.json
+https://raw.githubusercontent.com/{owner}/emergency-alert/main/api/latest.json
 ```
 
-### 5. Firestore（状態管理）
+### 3. Slack Bot（notifier/slack/）
 
-**Collections:**
+**役割:** JSON データから Slack メッセージを生成・送信
 
-| Collection | 用途 | TTL |
-|-----------|------|-----|
-| `jmaFeedState` | フィード取得状態（ETag） | なし |
-| `jmaSeenEntries` | エントリ重複排除 | 48時間 |
-| `jmaReportState` | 府県ごとの警報状態 | なし |
+**処理:**
+- API_URL から最新 JSON を fetch
+- Block Kit フォーマットでメッセージを構築
+- Slack Incoming Webhook で投稿
 
-### 6. Cloud Logging（監視）
-
-**出力形式:** JSON（GCP Cloud Logging互換）
-
-**ログタイプ:**
-- `info`: フィード取得件数、変更検知
-- `warn`: GitHub push失敗など
-- `error`: エラー詳細
+**メッセージ形式:**
+- 新着エントリ数をサマリー表示
+- フィード毎に件数表示
 
 ## データフロー
 
-### 毎分の処理フロー
+### 15分ごとの処理フロー
 
 ```
-1. Cloud Scheduler (毎分実行)
+1. GitHub Actions Workflow トリガー（schedule: 15分ごと）
    ↓
-2. Cloud Functions HTTP トリガー
-   ↓
-3. pollFeeds() - 4フィード並列取得
-   ├ フィード URL に条件付きGET
+2. scripts/github-poll.js 実行
+   ├ 4フィード並列ポーリング
    ├ Atom パース
-   ├ 重複排除（Firestore）
-   └ 新着エントリ抽出
+   ├ 重複排除（メモリ内、セッション単位）
+   ├ JSON 生成
+   └ api/latest.json に書き込み
    ↓
-4. API JSON生成
-   ├ 新着エントリ → JSON
-   ├ 情報名から深刻度判定
-   └ EventID で続報束ね
+3. git commit & push
+   ├ api/latest.json を add
+   ├ コミット
+   └ GitHub に push
    ↓
-5. GitHub push
-   ├ latest.json 更新
-   └ archive/{YYYYMM}/{timestamp}.json 保存
-   ↓
-6. Cloud Logging 出力
-   └ 統計情報・エラー
+4. notifier/slack/index.js 実行（if: always()）
+   ├ API_URL から JSON 取得
+   ├ Slack メッセージ構築
+   ├ Slack Webhook 投稿
+   └ エラーは || true でスキップ
 ```
+
+## ライブラリと技術スタック
+
+### コア ライブラリ
+
+| モジュール | 役割 | 特徴 |
+|----------|------|------|
+| `src/lib/feed.js` | HTTP フィード取得 | 条件付きGET対応 |
+| `src/lib/atom.js` | Atom フィードパース | fast-xml-parser使用 |
+| `src/lib/json-builder.js` | JSON生成 | フィード別集計 |
+
+### 依存ライブラリ
+
+- `fast-xml-parser` - Atom XML パース
+- Node.js 22 (ESM)
+- Node.js 標準: `crypto` (SHA-1)、`fs/promises` (ファイル)
+
+### 削減されたコンポーネント
+
+次のコンポーネントはシステムから削除：
+- Google Cloud Functions - GitHub Actions で置き換え
+- Google Cloud Firestore - セッション内メモリで置き換え
+- Google Cloud Scheduler - GitHub Actions schedule で置き換え
+- Google Cloud Logging - console.log で置き換え
 
 ## パフォーマンス設計
 
 | 項目 | 値 | 理由 |
 |-----|-----|------|
-| Cloud Functions timeout | 55秒 | 毎分起動と重ならない |
-| max-instances | 3 | 気象庁への同時接続制限 |
-| メモリ | 512MB | フィード解析に必要 |
-| ポーリング間隔 | 1分 | 気象庁の最大アクセス頻度 |
-| ETag キャッシュ | 有効 | 不要な転送削減 |
-| Firestore TTL | 48時間 | 重複排除の猶予 |
+| ポーリング間隔 | 15分 | GitHub Actions の一般的な最小単位 |
+| ETag キャッシュ | HTTP ヘッダ | 不要な転送削減 |
+| フィード並列度 | 4並列 | 気象庁への負荷回避 |
+| ワークフロー timeout | 10分（デフォルト） | 十分な処理時間 |
 
 ## 信頼性設計
 
 ### 重複排除
 
-- Entry ID の SHA-1 をキーとして Firestore に記録
-- ALREADY_EXISTS エラーで既処理判定
-- 48時間のTTLで古い記録を自動削除
-
-### 状態巻き戻し防止
-
-- ReportDateTime で電文の新旧判定
-- 古い電文による状態上書きを防止
+- Entry ID の SHA-1 をキーとして、メモリ内で追跡
+- 同一セッション内で重複を検出
+- 次回ポーリングでも「見たことある」を検出するため ID をハッシュ化
 
 ### 再試行
 
-- Cloud Scheduler は自動リトライ（1回）
-- デッドライン 60秒
-- Pub/Sub は at-least-once 配信
+- GitHub Actions の標準リトライ機構
+- Slack 通知失敗は || true でスキップ（ポーリングは続行）
 
-### 変化検知
+### 状態管理
 
-- 前回状態と比較
-- 変化がなければ通知しない
-- イベント型ではなく差分型（重複防止）
+- ステートレス設計（Firestore 不要）
+- 毎回フィード全体を読み直す（JSON 更新）
 
 ## スケーラビリティ
 
-### 荒天時の対応
+### 高頻度フィードへの対応
 
-- Entry 数が増加 → Firestore は自動スケール
-- 同時接続制限で気象庁への負荷回避
-- Pub/Sub（将来実装時）で非同期化可能
+- ETag キャッシュで不要な転送を削減
+- フィード内の新着エントリ数は通常数十件
+- 荒天時の「再発行」は同一エントリなので重複排除でカット
 
-### データ成長
+### アーカイブ成長
 
-- Archive は月別ディレクトリで管理
-- 古いデータは定期削除（GitHub Actions）
-- Firestore TTL で不要なドキュメント自動削除
+- 月別ディレクトリで整理
+- 1ヶ月あたり ~2880ファイル（15分ごと）
+- GitHub 容量は十分（アーカイブ自動削除も検討）
 
 ## セキュリティ
 
 ### 認証・認可
 
-- Cloud Functions は OIDC トークン認証
-- GitHub Token は Secret Manager で管理
-- サービスアカウントに最小権限付与
+- GitHub Token は `GITHUB_TOKEN`（GitHub Actions自動供給）
+- Slack Webhook URL は Secret として保管
+- API（`api/latest.json`）は public read
 
 ### アクセス制御
 
-- Cloud Functions は内部のみ（Scheduler から）
-- GitHub リポジトリは public
-- API 使用者の認証は実装例（リファレンス）で対応
+- ワークフローは該当リポジトリのみ修正可能
+- API 使用者の認証は実装例で対応
+- 気象庁へのアクセスは User-Agent で識別
 
 ## 運用
 
 ### 監視
 
-- Cloud Logging で構造化ログ出力
-- 連続エラーで自動アラート（要設定）
-- 304率、新着件数、エラーレートをメトリクス化
+- GitHub Actions ワークフロー実行ログ確認
+- エラー時は Actions タブで詳細を表示
+- `api/latest.json` を curl で動作確認可能
 
 ### バックアップ
 
-- Firestore は定期自動バックアップ
-- GitHub リポジトリはレプリケーション
+- GitHub リポジトリ全体が版管理
+- `api/archive/` に月別保存
+- git log で過去データを復元可能
 
-### ロールバック
+### 保守
 
-- Cloud Functions のバージョン管理
-- 前のバージョンへの即座のロールバック可能
+- 新規フィード追加時は `scripts/github-poll.js` の FEEDS 配列を修正
+- Slack 通知ロジック修正は `notifier/slack/` で実装
+- テスト: `npm test` で回帰確認

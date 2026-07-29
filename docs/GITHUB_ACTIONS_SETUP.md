@@ -17,12 +17,12 @@ git push -u origin main
 
 ### 2. ワークフローが有効になったか確認
 
-GitHub のリポジトリページで **Actions** タブを開き、`Poll JMA Feed` ワークフローが表示されていることを確認します。
+GitHub のリポジトリページで **Actions** タブを開き、`Poll JMA Feed & Notify` ワークフローが表示されていることを確認します。
 
 ### 3. 手動で 1回実行してテスト
 
 ```
-Actions → Poll JMA Feed → Run workflow → Run workflow
+Actions → Poll JMA Feed & Notify → Run workflow → Run workflow
 ```
 
 実行完了後、`api/latest.json` が作成されていれば成功です。
@@ -34,7 +34,7 @@ Actions → Poll JMA Feed → Run workflow → Run workflow
 ### ワークフローのログを確認
 
 ```
-Actions → Poll JMA Feed → 最新のワークフロー実行 → poll
+Actions → Poll JMA Feed & Notify → 最新のワークフロー実行 → poll-and-notify
 ```
 
 成功時のログ：
@@ -113,25 +113,33 @@ on:
 
 ### Push に失敗する
 
-```
-ERROR: GitHub API error: ...
-```
-
-**原因と対応:**
-- Token の権限不足 → 新しい Token を生成
-- jma-alert-api リポジトリが存在しない → 作成する
-- Secret が設定されていない → 設定し直す
+ワークフローのログで git push エラーを確認してください。一般的な原因：
+- リポジトリのブランチ保護設定
+- write 権限がない
 
 ### ポーリングが失敗する
 
-```
-ERROR: (gcloud.functions.deploy) ...
-```
-
 気象庁サーバーへのアクセス問題の可能性：
-1. ネットワークを確認
+1. ネットワーク接続を確認
 2. 気象庁サーバーが停止していないか確認
-3. User-Agent が正しいか確認
+3. フィード URL が正しいか確認（`scripts/github-poll.js` の FEEDS 配列）
+
+### Slack 通知が届かない
+
+1. **SLACK_WEBHOOK_URL Secret が設定されているか確認**
+   ```
+   Settings → Secrets and variables → Actions → SLACK_WEBHOOK_URL
+   ```
+
+2. **Webhook URL が有効か確認**
+   - Slack App → Incoming Webhooks で URL を確認
+   - 対象チャンネルが削除されていないか確認
+
+3. **ワークフロー log で通知試行を確認**
+   ```
+   Actions → Poll JMA Feed & Notify → Notify to Slack ステップ
+   ```
+   - Secret が設定されていない場合は `⚠️ SLACK_WEBHOOK_URL not set` と表示
 
 ---
 

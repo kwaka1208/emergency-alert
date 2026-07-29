@@ -17,16 +17,15 @@
 
 ```
 気象庁XML（毎分更新）
+    ↓ GitHub Actions（15分ごと）
+[ポーラー] フィード取得・重複排除・JSON生成
     ↓
-[poller] フィード取得・重複排除
-    ↓
-[processor] 電文パース・状態差分
-    ↓
-[api-builder] 深刻度分類・JSON生成
-    ↓
-GitHub jma-alert-api リポジトリ
+api/latest.json（このリポジトリ内）
     ↓
 REST API (raw.githubusercontent.com)
+    ↓
+【Slack Bot】（自動通知）
+【その他のカスタム通知】
 ```
 
 詳細: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -34,9 +33,9 @@ REST API (raw.githubusercontent.com)
 ## 技術スタック
 
 - **ランタイム**: Node.js 22 (ESM)
-- **クラウド**: Google Cloud Platform (Cloud Functions gen2, Firestore, Cloud Scheduler)
+- **自動化**: GitHub Actions（15分ごと）
 - **テスト**: Node.js 標準 test モジュール
-- **ライブラリ**: `fast-xml-parser`, `@google-cloud/*`
+- **ライブラリ**: `fast-xml-parser`
 
 ## セットアップ
 
@@ -53,27 +52,25 @@ npm test
 # 55個のテストが実行されます
 ```
 
-### 3. jma-alert-api リポジトリの準備
-
-[docs/SETUP_API_REPO.md](docs/SETUP_API_REPO.md) を参照して、GitHub に `jma-alert-api` リポジトリを作成してください。
-
-### 4. Google Cloud にデプロイ
+### 3. GitHub にリポジトリをプッシュ
 
 ```bash
-# 自動デプロイスクリプト
-./deployment/deploy.sh <PROJECT_ID>
-
-# または詳細な手順は DEPLOY.md を参照
+git remote add origin https://github.com/your-username/emergency-alert.git
+git push -u origin main
 ```
 
-[DEPLOY.md](DEPLOY.md) - 完全なデプロイガイド
+### 4. GitHub Actions を実行
+
+リポジトリの **Actions** → **Poll JMA Feed & Notify** → **Run workflow**
+
+詳細は [docs/GITHUB_ACTIONS_SETUP.md](docs/GITHUB_ACTIONS_SETUP.md) を参照。
 
 ## API 仕様
 
 ### エンドポイント
 
 ```
-https://raw.githubusercontent.com/{owner}/jma-alert-api/main/latest.json
+https://raw.githubusercontent.com/{owner}/emergency-alert/main/api/latest.json
 ```
 
 ### レスポンス形式
@@ -81,43 +78,27 @@ https://raw.githubusercontent.com/{owner}/jma-alert-api/main/latest.json
 ```json
 {
   "timestamp": "2026-07-29T10:00:00Z",
-  "immediate": [
+  "feeds": [
     {
-      "reportId": "...",
-      "reportTitle": "津波警報",
-      "infoType": "発表",
-      "eventID": "eq-2026-07-29-001",
-      "serialCount": 1,
-      "changes": {
-        "total": 5,
-        "added": 5,
-        "upgraded": 0,
-        "downgraded": 0,
-        "removed": 0
-      },
-      "areas": ["500000", "500010", ...]
+      "feed": "extra",
+      "count": 5,
+      "entries": [
+        {
+          "id": "http://example.com/xml/20260729100000_0.xml",
+          "title": "気象警報・注意報",
+          "updated": "2026-07-29T10:00:00Z",
+          "author": "気象庁",
+          "link": "http://example.com/xml/20260729100000_0.xml"
+        }
+      ]
     }
   ],
-  "digest": [ ... ],     // 警報クラス（集約）
-  "record": [ ... ],     // 注意報・予報（記録）
   "summary": {
-    "total": 23,
-    "byLevel": {
-      "immediate": 2,
-      "digest": 8,
-      "record": 13
-    }
+    "totalFeeds": 4,
+    "totalNewEntries": 12
   }
 }
 ```
-
-### 深刻度レベル
-
-| レベル | 対象 | 用途 |
-|--------|------|------|
-| **immediate** | 特別警報、津波警報、噴火警報など | 即座に個別通知 |
-| **digest** | 暴風・波浪・大雪の警報クラス | 5～15分ごとに集約 |
-| **record** | 注意報、予報情報など | 記録のみ（通知なし） |
 
 ## 使用例
 
@@ -125,18 +106,16 @@ https://raw.githubusercontent.com/{owner}/jma-alert-api/main/latest.json
 
 ```javascript
 const response = await fetch(
-  'https://raw.githubusercontent.com/your-username/jma-alert-api/main/latest.json'
+  'https://raw.githubusercontent.com/your-username/emergency-alert/main/api/latest.json'
 );
 const data = await response.json();
 
-// 即時通知対象
-if (data.immediate.length > 0) {
-  console.log('🚨 Immediate alerts:', data.immediate);
-}
+console.log(`取得タイムスタンプ: ${data.timestamp}`);
+console.log(`新着エントリ: ${data.summary.totalNewEntries}件`);
 
-// 集約通知対象
-if (data.digest.length > 0) {
-  console.log('⚠️ Digest alerts:', data.digest);
+// 各フィードの内容
+for (const feed of data.feeds) {
+  console.log(`${feed.feed}: ${feed.count}件`);
 }
 ```
 
@@ -145,17 +124,20 @@ if (data.digest.length > 0) {
 ```python
 import requests
 
-url = 'https://raw.githubusercontent.com/your-username/jma-alert-api/main/latest.json'
+url = 'https://raw.githubusercontent.com/your-username/emergency-alert/main/api/latest.json'
 data = requests.get(url).json()
 
-for alert in data['immediate']:
-    print(f"Alert: {alert['reportTitle']}")
+print(f"Timestamp: {data['timestamp']}")
+print(f"Total new entries: {data['summary']['totalNewEntries']}")
+
+for feed in data['feeds']:
+    print(f"{feed['feed']}: {feed['count']} entries")
 ```
 
 ### cURL
 
 ```bash
-curl https://raw.githubusercontent.com/your-username/jma-alert-api/main/latest.json | jq .
+curl https://raw.githubusercontent.com/your-username/emergency-alert/main/api/latest.json | jq .
 ```
 
 ## 設定
@@ -170,37 +152,29 @@ curl https://raw.githubusercontent.com/your-username/jma-alert-api/main/latest.j
 | `GITHUB_OWNER` | GitHub ユーザー/組織名 | 環境変数から取得 |
 | `GITHUB_REPO` | jma-alert-api リポジトリ | 環境変数から取得 |
 | `TITLE_ALLOW` | 対象情報名（カンマ区切り） | Phase 0実測のトップ8種 |
-| `TARGET_AREAS` | 対象地域（カンマ区切り） | 空（全国） |
 
-### 深刻度分類の更新
 
-`src/config/severity.json` を編集して、情報名→深刻度のマッピングを変更できます。
+## GitHub Actions での実行
 
-## 運用
+### 自動スケジュール
 
-### モニタリング
+デフォルトでは **15分ごと** に自動実行されます。
 
-```bash
-# ログ確認
-gcloud functions logs read pollJmaFeed --gen2 --limit 50
+### 手動実行
 
-# メトリクス確認
-gcloud logging read "resource.type=cloud_function" --format json
-```
+リポジトリの **Actions** → **Poll JMA Feed & Notify** → **Run workflow**
 
-### ポーリング実行テスト
+### 実行ログ確認
 
-```bash
-gcloud scheduler jobs run poll-jma-feed --location asia-northeast1
-```
+リポジトリの **Actions** → 対象ワークフロー → 実行詳細 → ログを確認
 
 ### トラブルシューティング
 
-- **Cloud Functions がタイムアウト**: 環境を見直し（メモリ、max-instances）
-- **GitHub push失敗**: Secret Manager トークン確認
-- **Firestore quota超過**: TTL ポリシー確認
+- **ポーリング失敗**: ログを確認し、気象庁サーバーの状態を確認
+- **Slack通知が届かない**: `SLACK_WEBHOOK_URL` Secret を確認
+- **API JSONが更新されない**: git 権限を確認
 
-詳細は [DEPLOY.md](DEPLOY.md) を参照。
+詳細は [docs/GITHUB_ACTIONS_SETUP.md](docs/GITHUB_ACTIONS_SETUP.md) を参照。
 
 ## 開発
 
@@ -226,26 +200,28 @@ npm test -- --grep "poller"
 ```
 src/
 ├── lib/                    # ライブラリ関数
-│   ├── atom.js            # Atom フィードパース（pure）
-│   ├── severity.js        # 深刻度判定（pure）
-│   ├── diff.js            # 状態差分（pure）
-│   ├── report.js          # 電文パース
-│   ├── state-manager.js   # 状態管理（pure）
-│   ├── api-builder.js     # JSON生成
-│   ├── feed.js            # フィード取得
-│   ├── store.js           # Firestore操作
-│   ├── github.js          # GitHub API
-│   └── logging.js         # 構造化ログ
-├── poller/
-│   ├── index.js          # ポーラーメインロジック
-│   └── http.js           # Cloud Functions エントリ
-└── config/
-    └── severity.json     # 情報名→深刻度マッピング
+│   ├── atom.js            # Atom フィードパース
+│   ├── feed.js            # フィード取得（HTTP）
+│   ├── json-builder.js    # JSON生成
+│   └── ...
+├── config/
+│   └── severity.json     # 情報名→深刻度マッピング（将来用）
+└── ...
+
+scripts/
+├── github-poll.js        # GitHub Actions ポーラー
+
+notifier/
+└── slack/                # Slack Bot 実装例
+    ├── index.js
+    └── messages.js
+
+api/
+├── latest.json           # 最新データ（自動生成）
+└── archive/              # アーカイブ
 
 test/
-├── fixtures/             # テストデータ（実データ）
-│   ├── *_l.xml          # Phase 0 フィード集計
-│   └── reports/         # 気象電文サンプル
+├── fixtures/             # テストデータ
 └── unit/                 # 単体テスト
 ```
 
@@ -258,30 +234,41 @@ test/
 
 本プログラムのコードは MIT ライセンスで利用可能です（気象庁データ部分を除く）。
 
-## 次のステップ
+## 通知の実装
 
-### 通知リファレンス実装
+### Slack Bot
 
-Slack/LINE など各種サービスへの通知例を別リポジトリで公開予定：
+このリポジトリに含まれる Slack Bot の実装例：
 
-- `jma-alert-notification` (コミングスーン)
-  - Slack Bot の実装例
-  - LINE Messaging API の実装例
-  - ローカルで動作確認可能な例
+```bash
+# セットアップ: notifier/slack/README.md を参照
+```
 
-### カスタマイズ
+### カスタム通知
 
-- 対象地域の限定（TARGET_AREAS）
-- 深刻度の調整（severity.json）
-- 通知ロジックの実装（別リポジトリ）
+REST API から JSON を取得して、任意のシステムと統合可能：
+
+```bash
+# 例: 定期的に API から取得して自分のシステムに通知
+curl https://raw.githubusercontent.com/{owner}/emergency-alert/main/api/latest.json \
+  | jq '.feeds[] | select(.count > 0)'
+```
+
+## カスタマイズ
+
+将来的に以下をカスタマイズ可能：
+
+- 深刻度の調整（`src/config/severity.json`）
+- 対象情報名の選別
+- 通知ロジックの追加（notifier/ に実装例を追加）
 
 ## サポート
 
 問題が発生した場合：
 
-1. [DEPLOY.md](DEPLOY.md) のトラブルシューティング確認
-2. Cloud Logging でエラーを確認
-3. テストで該当コンポーネント検証
+1. [docs/GITHUB_ACTIONS_SETUP.md](docs/GITHUB_ACTIONS_SETUP.md) でセットアップ確認
+2. リポジトリの **Actions** タブでワークフロー実行ログを確認
+3. `npm test` でコンポーネントを検証
 
 ---
 

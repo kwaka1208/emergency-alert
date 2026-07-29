@@ -3,9 +3,9 @@
 
 import fs from 'fs/promises';
 import { XMLParser } from 'fast-xml-parser';
-import { fetchFeed } from './src/lib/feed.js';
-import { parseAtomFeed } from './src/lib/atom.js';
-import { buildFeedJSON } from './src/lib/json-builder.js';
+import { fetchFeed } from '../src/lib/feed.js';
+import { parseAtomFeed } from '../src/lib/atom.js';
+import { buildFeedJSON } from '../src/lib/json-builder.js';
 import crypto from 'node:crypto';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@' });

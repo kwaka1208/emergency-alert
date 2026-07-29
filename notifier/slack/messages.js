@@ -125,12 +125,15 @@ export function buildSlackMessage(apiData) {
     type: 'divider',
   });
 
+  const apiUrl = process.env.API_URL ||
+    'https://raw.githubusercontent.com/user/emergency-alert/main/api/latest.json';
+
   blocks.push({
     type: 'context',
     elements: [
       {
         type: 'mrkdwn',
-        text: '<https://raw.githubusercontent.com/your-username/emergency-alert/main/api/latest.json|詳細はこちら>',
+        text: `<${apiUrl}|詳細はこちら>`,
       },
     ],
   });

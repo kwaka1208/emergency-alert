@@ -24,3 +24,8 @@ logs/
 
 # Runtime data
 .cache/
+
+# API data (except sent notifications)
+api/*.json
+!api/sent-notifs.json
+api/archive/

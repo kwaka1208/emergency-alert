@@ -7,6 +7,15 @@ on:
     # これにより自動的にポーリング後に通知が実行される
     - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
   workflow_dispatch:  # 手動実行
+    inputs:
+      test_mode:
+        description: 'Test mode (send even if no immediate alerts)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   notify:
@@ -27,4 +36,5 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           API_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/api/latest.json
+          SLACK_NOTIFY_TEST: ${{ github.event.inputs.test_mode || 'false' }}
         run: node notifier/slack/index.js || true

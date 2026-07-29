@@ -30,6 +30,11 @@ async function main() {
     const apiData = await response.json();
     console.log(`✅ Fetched data with ${apiData.summary.totalNewEntries} new entries`);
 
+    const isTestMode = process.env.SLACK_NOTIFY_TEST === 'true';
+    if (isTestMode) {
+      console.log('🧪 Test mode enabled');
+    }
+
     // 送信済みリストを読み込み
     const sentRecords = await loadSentRecords();
     const sentIds = buildSentIdSet(sentRecords);
@@ -40,7 +45,8 @@ async function main() {
 
     console.log(`📋 Immediate alerts: ${immediate.length} total, ${unsentImmediate.length} unsent`);
 
-    if (unsentImmediate.length === 0) {
+    // テストモードでなく、即時通知がなければスキップ
+    if (!isTestMode && unsentImmediate.length === 0) {
       console.log('✅ No new immediate alerts to send');
       process.exit(0);
     }
@@ -54,6 +60,12 @@ async function main() {
     };
     const message = buildSlackMessage(messageData);
 
+    // テストモード時は通知内容を確認してから送信
+    if (isTestMode) {
+      console.log('📋 Test message preview:');
+      console.log(JSON.stringify(message, null, 2).slice(0, 500) + '...');
+    }
+
     // Slack に送信
     console.log('📤 Sending to Slack...');
     const slackResponse = await fetch(webhookUrl, {
@@ -66,11 +78,14 @@ async function main() {
       throw new Error(`Slack API error: ${slackResponse.status}`);
     }
 
-    // 送信済みリストを更新
-    const newRecords = unsentImmediate.map(entry => addSentRecord(entry));
-    await saveSentRecords([...sentRecords, ...newRecords]);
+    // 本番モード時のみ送信済みリストを更新（テストデータを混ぜない）
+    if (!isTestMode) {
+      const newRecords = unsentImmediate.map(entry => addSentRecord(entry));
+      await saveSentRecords([...sentRecords, ...newRecords]);
+    }
 
-    console.log(`✅ Slack notification sent successfully (${unsentImmediate.length} immediate)`);
+    const modeLabel = isTestMode ? ' (テストモード)' : '';
+    console.log(`✅ Slack notification sent successfully (${unsentImmediate.length} immediate)${modeLabel}`);
     process.exit(0);
   } catch (err) {
     console.error('❌ Error:', err.message);

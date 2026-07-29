@@ -50,12 +50,11 @@ export function buildSlackMessage(apiData) {
     });
 
     for (const alert of immediate.slice(0, 5)) {
-      const areas = alert.areas ? alert.areas.join(', ') : '全国';
       blocks.push({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `• *${alert.reportTitle}*\n  地域: ${areas}`,
+          text: `• *${alert.title}*`,
         },
       });
     }
@@ -92,7 +91,7 @@ export function buildSlackMessage(apiData) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `• ${alert.reportTitle}`,
+          text: `• ${alert.title}`,
         },
       });
     }
@@ -147,11 +146,11 @@ export function buildSlackMessage(apiData) {
 export function buildThreadMessage(alert) {
   // 詳細メッセージ用（スレッド返信）
   const text = `
-*${alert.reportTitle}*
+*${alert.title}*
 • 情報種別: ${alert.infoType}
-• 対象地域: ${alert.areas.join(', ')}
-• 変更内容: 新規${alert.changes.added}件, 格上げ${alert.changes.upgraded}件, 格下げ${alert.changes.downgraded}件, 解除${alert.changes.removed}件
-• 発表時刻: ${new Date(alert.reportId).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+• 対象地域: ${alert.areas?.join(', ') || '不明'}
+• 変更内容: 新規${alert.changes?.added || 0}件, 格上げ${alert.changes?.upgraded || 0}件, 格下げ${alert.changes?.downgraded || 0}件, 解除${alert.changes?.removed || 0}件
+• 発表時刻: ${alert.updated ? new Date(alert.updated).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '不明'}
   `.trim();
 
   return {

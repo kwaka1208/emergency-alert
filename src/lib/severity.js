@@ -3,9 +3,11 @@
 
 export function loadSeverityConfig(configObject) {
   const result = new Map();
-  for (const [key, value] of Object.entries(configObject)) {
-    if (value.level) {
-      result.set(key, value.level);
+  for (const [levelName, levelConfig] of Object.entries(configObject)) {
+    if (levelConfig.level && Array.isArray(levelConfig.titles)) {
+      for (const title of levelConfig.titles) {
+        result.set(title, levelConfig.level);
+      }
     }
   }
   return result;

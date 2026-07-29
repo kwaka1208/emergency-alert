@@ -4,19 +4,34 @@ import { loadSeverityConfig, getSeverity, isImmediateSeverity } from '../../src/
 
 test('loadSeverityConfig - loads configuration', () => {
   const config = {
-    '気象特別警報': { level: 'immediate' },
-    '気象警報・注意報（Ｒ０６）': { level: 'digest' },
+    immediate: {
+      level: 'immediate',
+      titles: ['気象特別警報', '津波警報'],
+    },
+    digest: {
+      level: 'digest',
+      titles: ['気象警報・注意報（Ｒ０６）（大雨）'],
+    },
   };
   const result = loadSeverityConfig(config);
   assert.strictEqual(result instanceof Map, true);
-  assert.strictEqual(result.size, 2);
+  assert.strictEqual(result.size, 3);
 });
 
 test('getSeverity - matches prefix', () => {
   const config = {
-    '気象特別警報': { level: 'immediate' },
-    '気象警報・注意報（Ｒ０６）': { level: 'digest' },
-    '熱中症': { level: 'record' },
+    immediate: {
+      level: 'immediate',
+      titles: ['気象特別警報'],
+    },
+    digest: {
+      level: 'digest',
+      titles: ['気象警報・注意報（Ｒ０６）（大雨）'],
+    },
+    record: {
+      level: 'record',
+      titles: ['熱中症警戒アラート'],
+    },
   };
   const severityMap = loadSeverityConfig(config);
 

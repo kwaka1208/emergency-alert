@@ -7,6 +7,7 @@ import { fetchFeed } from '../src/lib/feed.js';
 import { parseAtomFeed } from '../src/lib/atom.js';
 import { buildFeedJSON } from '../src/lib/json-builder.js';
 import { classifyBySeverity } from '../src/lib/severity-filter.js';
+import severityConfig from '../src/config/severity.json' with { type: 'json' };
 import crypto from 'node:crypto';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@' });
@@ -103,8 +104,11 @@ async function pollFeed(feed) {
   const doc = parser.parse(response.body);
   const feedData = parseAtomFeed(doc);
 
+  // 旧体系などを除外してフィルタリング
+  const filteredEntries = filterNewFormatOnly(feedData.entries);
+
   const newEntries = [];
-  for (const entry of feedData.entries) {
+  for (const entry of filteredEntries) {
     const hash = crypto.createHash('sha1').update(entry.id).digest('hex');
     if (!seenEntries.has(hash)) {
       seenEntries.add(hash);
@@ -114,6 +118,16 @@ async function pollFeed(feed) {
 
   const feedJSON = buildFeedJSON(feed.name, newEntries);
   return feedJSON;
+}
+
+function filterNewFormatOnly(entries) {
+  const allTitles = new Set([
+    ...severityConfig.immediate.titles,
+    ...severityConfig.digest.titles,
+    ...severityConfig.record.titles,
+  ]);
+
+  return entries.filter(entry => allTitles.has(entry.title));
 }
 
 main();

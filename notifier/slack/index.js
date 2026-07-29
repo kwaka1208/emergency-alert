@@ -5,7 +5,24 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildSlackMessage } from './messages.js';
-import { filterUnsent, buildSentIdSet, addSentRecord } from '../../src/lib/dedup.js';
+
+// Dedup logic — pure functions to track sent notifications locally
+function buildSentIdSet(sentRecords) {
+  return new Set(sentRecords.map(r => r.reportId));
+}
+
+function filterUnsent(entries, sentIds) {
+  return entries.filter(entry => !sentIds.has(entry.reportId));
+}
+
+function addSentRecord(entry) {
+  return {
+    reportId: entry.reportId,
+    reportTitle: entry.reportTitle,
+    eventID: entry.eventID,
+    sentAt: new Date().toISOString(),
+  };
+}
 
 async function main() {
   try {

@@ -33,9 +33,11 @@ SLACK_WEBHOOK_URL = https://hooks.slack.com/services/...
 
 リポジトリの **Actions** → **Notify to Slack** → 実行ログを確認
 
-デフォルトでは **5分ごと**、ポーリングから**2分後**に自動実行されます：
-- ポーリング: 0分, 5分, 10分, 15分...
-- 通知: 2分, 7分, 12分, 17分...
+デフォルトでは **5 分ごと**に自動実行されます：
+
+- **毎 5 分**: `notify-slack.yml` が実行
+- **参照元**: jma-api の `api/latest.json`
+  - https://raw.githubusercontent.com/kwaka1208/jma-api/main/api/latest.json
 
 ---
 
@@ -43,12 +45,13 @@ SLACK_WEBHOOK_URL = https://hooks.slack.com/services/...
 
 ### 実行スケジュール
 
-- **Poll JMA Feed**: 毎5分（ポーリング実行）
-- **Notify to Slack**: 毎5分、2分遅延（ポーリング後に通知送信）
+- **Notify to Slack**: 毎 5 分
+- **データ元**: [jma-api](https://github.com/kwaka1208/jma-api) の `api/latest.json`（毎分更新）
 
 ### 実行間隔を変更する場合
 
-`.github/workflows/notify-slack.yml` の `cron` を編集（[docs/GITHUB_ACTIONS_SETUP.md](../../docs/GITHUB_ACTIONS_SETUP.md#スケジュール設定) 参照）
+`.github/workflows/notify-slack.yml` の `cron` を編集
+（詳細: [docs/GITHUB_ACTIONS_SETUP.md](../../docs/GITHUB_ACTIONS_SETUP.md)）
 
 ### 通知内容
 

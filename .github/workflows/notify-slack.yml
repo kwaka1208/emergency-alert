@@ -35,6 +35,6 @@ jobs:
       - name: Notify to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          API_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/api/latest.json
+          API_URL: https://raw.githubusercontent.com/kwaka1208/jma-api/main/api/latest.json
           SLACK_NOTIFY_TEST: ${{ github.event.inputs.test_mode || 'false' }}
         run: node notifier/slack/index.js || true

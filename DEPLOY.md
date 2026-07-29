@@ -1,52 +1,186 @@
-# デプロイ手順
+# デプロイガイド
+
+気象庁防災情報APIシステムをGoogle Cloudにデプロイする手順です。
+
+## 前提条件
+
+- Google Cloud プロジェクトが作成済み
+- `gcloud` CLI がインストール済み
+- GitHub Personal Access Token がある（jma-alert-api へのpush用）
+- 適切な IAM 権限がある
+
+## ステップ1: 環境準備
+
+### 1.1 プロジェクト設定
 
 ```bash
-PROJECT=your-project
-REGION=asia-northeast1
-SA=jma-alert@$PROJECT.iam.gserviceaccount.com
+export PROJECT_ID="your-project-id"
+export REGION="asia-northeast1"
 
+gcloud config set project $PROJECT_ID
+gcloud config set compute/region $REGION
+```
+
+### 1.2 必要な API の有効化
+
+```bash
 gcloud services enable \
-  cloudfunctions.googleapis.com run.googleapis.com \
-  cloudbuild.googleapis.com cloudscheduler.googleapis.com \
-  firestore.googleapis.com
+  cloudfunctions.googleapis.com \
+  cloudscheduler.googleapis.com \
+  firestore.googleapis.com \
+  cloudbuild.googleapis.com \
+  secretmanager.googleapis.com
+```
 
+## ステップ2: Firestore セットアップ
+
+### 2.1 Firestore データベース作成
+
+```bash
 gcloud firestore databases create --location=$REGION
-
-gcloud iam service-accounts create jma-alert
-gcloud projects add-iam-policy-binding $PROJECT \
-  --member=serviceAccount:$SA --role=roles/datastore.user
 ```
 
-## 関数
+### 2.2 TTL ポリシー設定（48時間で自動削除）
+
+Firestore Console から TTL ポリシーを設定：
+- Collection: `jmaSeenEntries`
+- TTL フィールド: `expireAt`
+
+## ステップ3: Secret Manager セットアップ
+
+### 3.1 シークレット作成
 
 ```bash
-gcloud functions deploy jma-feed-poller \
-  --gen2 --runtime=nodejs22 --region=$REGION \
-  --source=. --entry-point=pollJmaFeed \
-  --trigger-http --no-allow-unauthenticated \
-  --service-account=$SA \
-  --memory=256Mi --timeout=55s --max-instances=3 \
-  --set-env-vars=TARGET_AREAS=奈良県 \
-  --set-secrets=SLACK_WEBHOOK_URL=slack-webhook:latest
+# GitHub Token
+echo -n "your-github-personal-access-token" | \
+  gcloud secrets create github-token --data-file=-
+
+# GitHub Owner
+echo -n "your-github-username" | \
+  gcloud secrets create github-owner --data-file=-
+
+# GitHub Repo
+echo -n "jma-alert-api" | \
+  gcloud secrets create github-repo --data-file=-
 ```
 
-`--timeout=55s` は毎分起動と重ならないようにするため。`--max-instances` を絞っておくと、
-暴走時に気象庁側へ大量アクセスするのを防げる。
-
-## Scheduler（毎分）
+### 3.2 サービスアカウント作成・権限付与
 
 ```bash
-URL=$(gcloud functions describe jma-feed-poller --region=$REGION --gen2 --format='value(serviceConfig.uri)')
+# サービスアカウント作成
+gcloud iam service-accounts create jma-alert \
+  --display-name="JMA Alert System"
 
-gcloud run services add-iam-policy-binding jma-feed-poller \
-  --region=$REGION --member=serviceAccount:$SA --role=roles/run.invoker
+SA_EMAIL="jma-alert@${PROJECT_ID}.iam.gserviceaccount.com"
 
-gcloud scheduler jobs create http jma-feed-poll \
-  --location=$REGION --schedule="* * * * *" --time-zone="Asia/Tokyo" \
-  --uri=$URL --http-method=GET \
-  --oidc-service-account-email=$SA \
-  --attempt-deadline=60s
+# Secret Manager アクセス権限
+for secret in github-token github-owner github-repo; do
+  gcloud secrets add-iam-policy-binding $secret \
+    --member=serviceAccount:$SA_EMAIL \
+    --role=roles/secretmanager.secretAccessor
+done
+
+# Firestore アクセス権限
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member=serviceAccount:$SA_EMAIL \
+  --role=roles/datastore.user
+
+# Cloud Logging
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member=serviceAccount:$SA_EMAIL \
+  --role=roles/logging.logWriter
 ```
+
+## ステップ4: Cloud Functions デプロイ
+
+```bash
+SA_EMAIL="jma-alert@${PROJECT_ID}.iam.gserviceaccount.com"
+
+gcloud functions deploy pollJmaFeed \
+  --gen2 \
+  --runtime nodejs22 \
+  --trigger-http \
+  --entry-point pollJmaFeed \
+  --source src/poller \
+  --region $REGION \
+  --memory 512MB \
+  --timeout 55s \
+  --max-instances 3 \
+  --service-account $SA_EMAIL \
+  --set-env-vars \
+    "USER_AGENT=jma-alert-bot/1.0 (+https://example.com/contact)" \
+    "PUSH_TO_GITHUB=true" \
+    "GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
+```
+
+**注:**
+- `--timeout=55s`: 毎分起動と重ならないようにするため
+- `--max-instances 3`: 気象庁への同時接続を制限
+
+## ステップ5: Cloud Scheduler セットアップ
+
+```bash
+# Cloud Functions URL を取得
+FUNCTION_URL=$(gcloud functions describe pollJmaFeed \
+  --gen2 --region $REGION \
+  --format='value(serviceConfig.uri)')
+
+SA_EMAIL="jma-alert@${PROJECT_ID}.iam.gserviceaccount.com"
+
+# Scheduler ジョブ作成（毎分実行）
+gcloud scheduler jobs create http poll-jma-feed \
+  --schedule="*/1 * * * *" \
+  --time-zone="Asia/Tokyo" \
+  --http-method=GET \
+  --uri=$FUNCTION_URL \
+  --oidc-service-account-email=$SA_EMAIL \
+  --oidc-token-audience=$FUNCTION_URL \
+  --location $REGION
+```
+
+## ステップ6: 動作確認
+
+### 6.1 ジョブテスト実行
+
+```bash
+gcloud scheduler jobs run poll-jma-feed \
+  --location $REGION
+```
+
+### 6.2 ログ確認
+
+```bash
+gcloud functions logs read pollJmaFeed \
+  --gen2 \
+  --limit 50
+```
+
+### 6.3 jma-alert-api リポジトリ確認
+
+数分待って、GitHub リポジトリに `latest.json` が push されたか確認：
+
+```bash
+curl https://raw.githubusercontent.com/{owner}/jma-alert-api/main/latest.json | jq .
+```
+
+## 本番運用
+
+### ログ監視
+
+```bash
+gcloud logging read "resource.type=cloud_function AND resource.labels.function_name=pollJmaFeed" \
+  --limit 20 \
+  --format json
+```
+
+### エラーアラート設定
+
+Firestore の quota 超過や GitHub push エラーが発生した場合のアラート設定は、
+Cloud Console の Monitoring セクションで行ってください。
+
+---
+
+詳細は [docs/SETUP_API_REPO.md](docs/SETUP_API_REPO.md) を参照。
 
 ## Firestore の TTL（重複排除レコードの自動削除）
 
